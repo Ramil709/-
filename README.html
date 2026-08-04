@@ -1,0 +1,314 @@
+# ---- alarm.html (原始)
+
+
++++ alarm.html (修改后)
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Будильник</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .clock {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: 'Courier New', monospace;
+        }
+
+        .input-group {
+            margin: 30px 0;
+        }
+
+        input[type="time"] {
+            padding: 15px 20px;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-set {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-set:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn-snooze {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-snooze:hover {
+            background: #e68900;
+            transform: translateY(-2px);
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 1.2em;
+            min-height: 30px;
+        }
+
+        .alarm-active {
+            animation: pulse 1s infinite;
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .alarm-time-display {
+            font-size: 1.5em;
+            margin-top: 15px;
+            color: #ffd700;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <h1>⏰ Будильник</h1>
+
+        <div class="clock" id="clock">00:00:00</div>
+
+        <div class="input-group">
+            <input type="time" id="alarmTime" step="1">
+        </div>
+
+        <div class="buttons">
+            <button class="btn-set" onclick="setAlarm()">Установить</button>
+            <button class="btn-clear hidden" id="clearBtn" onclick="clearAlarm()">Отменить</button>
+            <button class="btn-snooze hidden" id="snoozeBtn" onclick="snooze()">Отложить (5 мин)</button>
+        </div>
+
+        <div class="status" id="status"></div>
+        <div class="alarm-time-display" id="alarmDisplay"></div>
+    </div>
+
+    <script>
+        let alarmSet = false;
+        let alarmTime = null;
+        let audioContext = null;
+        let oscillator = null;
+        let isRinging = false;
+
+        // Обновление часов
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+            if (alarmSet && !isRinging) {
+                const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+                const currentSeconds = now.getSeconds();
+
+                if (currentTotalMinutes === alarmTime.totalMinutes && currentSeconds === 0) {
+                    ringAlarm();
+                }
+            }
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Установка будильника
+        function setAlarm() {
+            const timeInput = document.getElementById('alarmTime').value;
+
+            if (!timeInput) {
+                document.getElementById('status').textContent = '⚠️ Выберите время!';
+                return;
+            }
+
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            alarmTime = {
+                hours: hours,
+                minutes: minutes,
+                totalMinutes: hours * 60 + minutes
+            };
+
+            alarmSet = true;
+            isRinging = false;
+
+            document.getElementById('status').textContent = '✅ Будильник установлен';
+            document.getElementById('clearBtn').classList.remove('hidden');
+            document.getElementById('alarmDisplay').textContent = `⏰ ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            document.getElementById('container').classList.remove('alarm-active');
+
+            stopAlarmSound();
+        }
+
+        // Отмена будильника
+        function clearAlarm() {
+            alarmSet = false;
+            alarmTime = null;
+            isRinging = false;
+
+            document.getElementById('status').textContent = '';
+            document.getElementById('clearBtn').classList.add('hidden');
+            document.getElementById('snoozeBtn').classList.add('hidden');
+            document.getElementById('alarmDisplay').textContent = '';
+            document.getElementById('container').classList.remove('alarm-active');
+
+            stopAlarmSound();
+        }
+
+        // Отложить будильник
+        function snooze() {
+            stopAlarmSound();
+            isRinging = false;
+
+            const now = new Date();
+            const newMinutes = now.getMinutes() + 5;
+            const newHours = now.getHours() + Math.floor(newMinutes / 60);
+
+            alarmTime = {
+                hours: newHours % 24,
+                minutes: newMinutes % 60,
+                totalMinutes: (newHours % 24) * 60 + (newMinutes % 60)
+            };
+
+            document.getElementById('status').textContent = '💤 Будильник отложен на 5 минут';
+            document.getElementById('snoozeBtn').classList.add('hidden');
+            document.getElementById('alarmDisplay').textContent = `⏰ ${String(alarmTime.hours).padStart(2, '0')}:${String(alarmTime.minutes).padStart(2, '0')}`;
+            document.getElementById('container').classList.remove('alarm-active');
+        }
+
+        // Звонок будильника
+        function ringAlarm() {
+            isRinging = true;
+            document.getElementById('status').textContent = '🔔 ВРЕМЯ ПРОСЫПАТЬСЯ!';
+            document.getElementById('snoozeBtn').classList.remove('hidden');
+            document.getElementById('container').classList.add('alarm-active');
+
+            playAlarmSound();
+        }
+
+        // Воспроизведение звука
+        function playAlarmSound() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.type = 'square';
+                oscillator.frequency.value = 880;
+                gainNode.gain.value = 0.3;
+
+                oscillator.start();
+
+                // Мигание частоты
+                setInterval(() => {
+                    if (oscillator && isRinging) {
+                        oscillator.frequency.value = oscillator.frequency.value === 880 ? 440 : 880;
+                    }
+                }, 500);
+
+            } catch (e) {
+                console.log('Audio not supported or blocked');
+            }
+        }
+
+        // Остановка звука
+        function stopAlarmSound() {
+            if (oscillator) {
+                try {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                } catch (e) {}
+                oscillator = null;
+            }
+            if (audioContext) {
+                try {
+                    audioContext.close();
+                } catch (e) {}
+                audioContext = null;
+            }
+        }
+
+        // Остановка при закрытии вкладки
+        window.addEventListener('beforeunload', () => {
+            stopAlarmSound();
+        });
+    </script>
+</body>
+</html>
