@@ -1,4 +1,4 @@
-# ---- alarm.html (原始)
+--- alarm.html (原始)
 
 
 +++ alarm.html (修改后)
@@ -34,18 +34,21 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
-        h1 {
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
         .clock {
-            font-size: 4em;
+            font-size: 8em;
             font-weight: bold;
             margin: 20px 0;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
             font-family: 'Courier New', monospace;
+        }
+
+        .timer-display {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: 'Courier New', monospace;
+            color: #ffd700;
         }
 
         .input-group {
@@ -127,6 +130,15 @@
             100% { transform: scale(1); }
         }
 
+        @keyframes flash {
+            0%, 100% { background-color: rgba(255, 255, 255, 0.1); }
+            50% { background-color: rgba(244, 67, 54, 0.8); }
+        }
+
+        .screen-flash {
+            animation: flash 0.5s infinite;
+        }
+
         .hidden {
             display: none;
         }
@@ -141,16 +153,16 @@
 </head>
 <body>
     <div class="container" id="container">
-        <h1>⏰ Будильник</h1>
-
         <div class="clock" id="clock">00:00:00</div>
+
+        <div class="timer-display hidden" id="timerDisplay">00:00:00</div>
 
         <div class="input-group">
             <input type="time" id="alarmTime" step="1">
         </div>
 
         <div class="buttons">
-            <button class="btn-set" onclick="setAlarm()">Установить</button>
+            <button class="btn-set" onclick="setAlarm()">Установить будильник</button>
             <button class="btn-clear hidden" id="clearBtn" onclick="clearAlarm()">Отменить</button>
             <button class="btn-snooze hidden" id="snoozeBtn" onclick="snooze()">Отложить (5 мин)</button>
         </div>
@@ -165,6 +177,9 @@
         let audioContext = null;
         let oscillator = null;
         let isRinging = false;
+        let timerInterval = null;
+        let timerRunning = false;
+        let timerEndTime = null;
 
         // Обновление часов
         function updateClock() {
@@ -184,7 +199,31 @@
             }
         }
 
+        // Обновление таймера
+        function updateTimer() {
+            if (!timerRunning || !timerEndTime) return;
+
+            const now = new Date().getTime();
+            const distance = timerEndTime - now;
+
+            if (distance < 0) {
+                clearInterval(timerInterval);
+                timerRunning = false;
+                document.getElementById('timerDisplay').classList.add('hidden');
+                document.getElementById('timerDisplay').textContent = '00:00:00';
+                return;
+            }
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById('timerDisplay').textContent =
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
         setInterval(updateClock, 1000);
+        setInterval(updateTimer, 1000);
         updateClock();
 
         // Установка будильника
@@ -225,6 +264,7 @@
             document.getElementById('snoozeBtn').classList.add('hidden');
             document.getElementById('alarmDisplay').textContent = '';
             document.getElementById('container').classList.remove('alarm-active');
+            document.body.classList.remove('screen-flash');
 
             stopAlarmSound();
         }
@@ -233,6 +273,7 @@
         function snooze() {
             stopAlarmSound();
             isRinging = false;
+            document.body.classList.remove('screen-flash');
 
             const now = new Date();
             const newMinutes = now.getMinutes() + 5;
@@ -256,6 +297,7 @@
             document.getElementById('status').textContent = '🔔 ВРЕМЯ ПРОСЫПАТЬСЯ!';
             document.getElementById('snoozeBtn').classList.remove('hidden');
             document.getElementById('container').classList.add('alarm-active');
+            document.body.classList.add('screen-flash');
 
             playAlarmSound();
         }
